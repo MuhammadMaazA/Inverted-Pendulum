@@ -1,0 +1,71 @@
+<?xml version="1.0" ?>
+<robot name="cart_pole">
+
+  <!-- The cart is the base link -->
+  <link name="cart_link">
+    <inertial>
+      <!-- Adjust mass and inertia to suit your system -->
+      <origin xyz="0 0 0"/>
+      <mass value="0.5"/>
+      <inertia ixx="0.001" iyy="0.001" izz="0.001" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <!-- A small box for the cart. halfExtents => full size is double these -->
+        <box size="0.4 0.2 0.2"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0.4 0.8 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.4 0.2 0.2"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- The pendulum link -->
+  <link name="pole_link">
+    <inertial>
+      <!-- Example mass for the pole (adjust as needed) -->
+      <origin xyz="0 0 0.25"/>
+      <mass value="0.05"/>
+      <!-- A rough guess for the moment of inertia -->
+      <inertia ixx="0.0005" iyy="0.0005" izz="0.0005" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <!-- A cylinder of length 0.5, radius 0.01 -->
+      <origin xyz="0 0 0" rpy="0 1.5708 0"/>
+      <geometry>
+        <cylinder length="0.5" radius="0.01"/>
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 1.5708 0"/>
+      <geometry>
+        <cylinder length="0.5" radius="0.01"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Revolute joint to connect cart_link to pole_link -->
+  <joint name="pivot_joint" type="revolute">
+    <!-- The pivot is placed on top of the cart. 
+         So we assume the cart is at z=0.1 (half the box height) and
+         the pivot is right above the cart at z=0.2 if you want it at the top surface. 
+         Adjust as needed to match geometry. 
+         We'll put it at z=0.2 so the pole swings above the cart. -->
+    <origin xyz="0 0 0.2" rpy="0 0 0"/>
+    <parent link="cart_link"/>
+    <child link="pole_link"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-3.14159" upper="3.14159" effort="100" velocity="100"/>
+  </joint>
+
+</robot>
