@@ -2,3 +2,4 @@ pybullet
 numpy
 matplotlib
 scipy
+casadi

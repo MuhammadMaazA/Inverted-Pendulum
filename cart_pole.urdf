@@ -1,6 +1,13 @@
 <?xml version="1.0" ?>
 <robot name="cart_pole">
 
+  <!--
+     A simple cart + pendulum URDF:
+     - Cart mass ~0.5 kg
+     - Pendulum rod length ~0.45 m, mass ~0.05 kg
+     - Revolute joint so pendulum can swing in XZ-plane
+  -->
+
   <!-- CART (base link) -->
   <link name="cart_link">
     <inertial>
@@ -11,7 +18,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
-        <!-- box sized 0.4 x 0.2 x 0.2 (Width x Depth x Height) -->
+        <!-- box: 0.4 x 0.2 x 0.2 (width x depth x height) -->
         <box size="0.4 0.2 0.2"/>
       </geometry>
       <material name="blue">
@@ -26,15 +33,16 @@
     </collision>
   </link>
 
-  <!-- PENDULUM ROD -->
+  <!-- PENDULUM ROD (child link) -->
   <link name="pole_link">
     <inertial>
-      <!-- mass=0.05, length=0.45 -->
+      <!-- For rod ~0.45m length, mass=0.05kg. Adjust as needed. -->
       <origin xyz="0 0 0.225"/>
       <mass value="0.05"/>
       <inertia ixx="0.0006" iyy="0.0006" izz="0.0006" ixy="0" ixz="0" iyz="0"/>
     </inertial>
     <visual>
+      <!-- cylinder: length=0.45, radius=0.01 -->
       <origin xyz="0 0 0" rpy="0 1.5708 0"/>
       <geometry>
         <cylinder length="0.45" radius="0.01"/>
@@ -51,13 +59,12 @@
     </collision>
   </link>
 
-  <!-- REVOLUTE JOINT: pivot on top of cart -->
+  <!-- Revolute joint at top center of the cart box (z=0.2) -->
   <joint name="pole_joint" type="revolute">
-    <!-- Place pivot at top center of cart (z=0.2 if cart is 0.2 high) -->
     <origin xyz="0 0 0.2" rpy="0 0 0"/>
     <parent link="cart_link"/>
     <child link="pole_link"/>
-    <!-- rotate around Y-axis so it swings in XZ-plane -->
+    <!-- rotate around Y-axis so the pendulum swings in XZ-plane -->
     <axis xyz="0 1 0"/>
     <limit lower="-3.14" upper="3.14" effort="100" velocity="50"/>
   </joint>
