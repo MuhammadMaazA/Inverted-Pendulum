@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
 Inverted Pendulum Simulation using PyBullet with an LQR Controller.
-
-This simulation uses three URDF files (cart, rod, bob) placed in the same directory.
-The system starts in a stable configuration (cart at x = 0, pendulum upright) and remains
-running until you either press the 'q' key or manually close the PyBullet GUI window.
-You can interact with the simulation by poking it with left mouse clicks—the LQR controller
-will try to restabilize the system immediately.
+This simulation uses three URDF files (cart, rod, bob) located in the same directory.
+The system starts in a stable configuration (cart at x = 0; pendulum upright)
+and remains running until you press the 'q' key (while the window is active) or manually close the GUI.
+You can interact with the simulation by left-clicking ("poking" the system); the controller will
+try to restore stability.
 """
 
 import pybullet as pb
@@ -17,25 +16,26 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 
-# -----------------------------------------------------------------------------
-# Define mouse and keyboard event constants (if not provided by pybullet)
-# -----------------------------------------------------------------------------
-MOUSE_BUTTON_LEFT = 0      # our convention: left mouse button = 0
-KEY_WAS_TRIGGERED = 1      # our convention for a key press event
+# ------------------------------------------------------------------
+# Define our own keyboard/mouse event constants (if not provided)
+# ------------------------------------------------------------------
+MOUSE_BUTTON_LEFT = 0      # left mouse button
+KEY_WAS_TRIGGERED = 1      # flag for a key-press event
 
 # =============================================================================
 # PARAMETERS CLASS
 # =============================================================================
 class Params:
     def __init__(self):
-        # Desired cart position (stable target)
+        # Target: keep cart at x = 0
         self.x_des = 0.0
         
-        # LQR gains (pre-tuned for the linearized inverted pendulum)
+        # Use LQR controller (only one controller is used)
         # Control law: F = -K * [x - x_des, xdot, theta, theta_dot]
-        self.K_lqr = np.array([-40.0, -10.0, 80.0, 15.0])
+        # Gains tuned to be moderately aggressive.
+        self.K_lqr = np.array([-20.0, -5.0, 40.0, 7.5])
         
-        # Sensor noise parameters
+        # Sensor noise parameters (optional)
         self.use_noise = True
         self.noise_std_x = 0.002
         self.noise_std_xdot = 0.002
@@ -43,14 +43,14 @@ class Params:
         self.noise_std_thdot = 0.002
         self.alpha_filter = 0.9
 
-        # Optional saturation for the control force
-        self.use_saturation = False
+        # Control saturation (clip force output)
+        self.use_saturation = True
         self.max_force = 50.0
 
-        # Disturbance parameters (to test robustness)
-        self.disturb_time = 2.0       # seconds at which to apply a disturbance
-        self.disturb_force = 5.0      # additional force applied at disturbance
-        self.tip_angle_deg = 5.0      # extra tip in degrees applied at disturbance
+        # Disturbance parameters (simulate an external push)
+        self.disturb_time = 2.0       # seconds when a disturbance is applied
+        self.disturb_force = 5.0      # extra force at disturbance
+        self.tip_angle_deg = 5.0      # extra tip (in degrees) applied
 
         # Simulation parameters
         self.dt = 1.0 / 240.0
@@ -78,20 +78,18 @@ class Sensor:
         if self.prev_meas is None:
             self.prev_meas = meas
             return meas
-
         filtered = p.alpha_filter * self.prev_meas + (1.0 - p.alpha_filter) * meas
         self.prev_meas = filtered
         return filtered
 
 # =============================================================================
-# CONTROLLER CLASS (LQR only)
+# CONTROLLER CLASS (LQR)
 # =============================================================================
 class Controller:
     def __init__(self, params: Params):
         self.params = params
 
     def compute_force(self, meas):
-        # Error vector: [x - x_des, xdot, theta, theta_dot]
         p = self.params
         x, xdot, th, thdot = meas
         error = np.array([x - p.x_des, xdot, th, thdot])
@@ -109,7 +107,7 @@ class InvertedPendulumSim:
         self.sensor = Sensor(params)
         self.controller = Controller(params)
 
-        # Data logs for plotting
+        # Data logging
         self.t_data = []
         self.x_data = []
         self.th_data = []
@@ -134,11 +132,16 @@ class InvertedPendulumSim:
     def load_models(self):
         # Load URDF files (assumed to be in the same directory)
         self.cart_id = pb.loadURDF("cart.urdf", basePosition=[0, 0, 0], useFixedBase=False)
-        self.rod_id = pb.loadURDF("rod.urdf", basePosition=[0, 0, 0.325], useFixedBase=False)
-        self.bob_id = pb.loadURDF("bob.urdf", basePosition=[0, 0, 0.55], useFixedBase=False)
+        self.rod_id  = pb.loadURDF("rod.urdf", basePosition=[0, 0, 0.325], useFixedBase=False)
+        self.bob_id  = pb.loadURDF("bob.urdf", basePosition=[0, 0, 0.55], useFixedBase=False)
+
+        # (Optional) Apply damping to reduce aggressive dynamics.
+        pb.changeDynamics(self.cart_id, -1, linearDamping=0.1, angularDamping=0.1)
+        pb.changeDynamics(self.rod_id,  -1, linearDamping=0.1, angularDamping=0.1)
+        pb.changeDynamics(self.bob_id,  -1, linearDamping=0.1, angularDamping=0.1)
 
         # Create a point-to-point constraint between the cart and the rod.
-        # Attach cart top ([0, 0, 0.1]) to rod bottom (local [0, 0, -0.225])
+        # Attach the cart's top ([0, 0, 0.1]) to the rod's bottom (local [0, 0, -0.225]).
         c1 = pb.createConstraint(
             parentBodyUniqueId=self.cart_id, parentLinkIndex=-1,
             childBodyUniqueId=self.rod_id, childLinkIndex=-1,
@@ -149,29 +152,28 @@ class InvertedPendulumSim:
         )
         pb.changeConstraint(c1, maxForce=1000)
 
-        # Create a constraint between the rod and the bob.
-        # Attach rod top (local [0, 0, 0.225]) to bob (center at [0, 0, 0])
+        # Create a fixed constraint between the rod and the bob so that the bob stays attached.
+        # Attach the rod's top (local [0, 0, 0.225]) to the bob's center ([0, 0, 0]).
         c2 = pb.createConstraint(
             parentBodyUniqueId=self.rod_id, parentLinkIndex=-1,
             childBodyUniqueId=self.bob_id, childLinkIndex=-1,
-            jointType=pb.JOINT_POINT2POINT,
+            jointType=pb.JOINT_FIXED,
             jointAxis=[0, 0, 0],
             parentFramePosition=[0, 0, 0.225],
             childFramePosition=[0, 0, 0]
         )
-        pb.changeConstraint(c2, maxForce=1000)
+        # For a fixed joint, no need to change constraint forces
 
     def compute_mouse_force(self):
-        """Check for left mouse clicks and apply a small impulse to the clicked object."""
+        """Checks for left mouse clicks and applies a small impulse to the clicked object."""
         events = pb.getMouseEvents()
         if not events:
             return
 
-        # Get the first 11 values from getDebugVisualizerCamera()
+        # Get camera parameters (we assume at least 11 values are returned)
         camera_info = pb.getDebugVisualizerCamera()
         if len(camera_info) < 11:
             return
-
         w, h, view, proj, camUp, camFwd, hor, ver, yaw, pitch, camTarget = camera_info[:11]
 
         for e in events:
@@ -199,17 +201,17 @@ class InvertedPendulumSim:
         invV = np.linalg.inv(np.array(view).reshape((4, 4)).T)
         invP = np.linalg.inv(np.array(proj).reshape((4, 4)).T)
         nearPt = np.array([ndcX, ndcY, -1, 1])
-        farPt = np.array([ndcX, ndcY, 1, 1])
+        farPt  = np.array([ndcX, ndcY, 1, 1])
         nearCam = invP.dot(nearPt)
         nearCam /= nearCam[3]
-        farCam = invP.dot(farPt)
-        farCam /= farCam[3]
+        farCam  = invP.dot(farPt)
+        farCam  /= farCam[3]
         nearWorld = invV.dot(nearCam)
         nearWorld /= nearWorld[3]
-        farWorld = invV.dot(farCam)
-        farWorld /= farWorld[3]
+        farWorld  = invV.dot(farCam)
+        farWorld  /= farWorld[3]
         rayFrom = nearWorld[:3]
-        rayTo = farWorld[:3]
+        rayTo   = farWorld[:3]
         return rayFrom, rayTo
 
     def run(self):
@@ -217,8 +219,14 @@ class InvertedPendulumSim:
         self.start_time = time.time()
         self.last_time = self.start_time
 
-        # Run simulation until the PyBullet window is closed or the user presses 'q'
-        while pb.getConnectionInfo()['isConnected']:
+        # Run indefinitely until you press 'q' (with the window active) or close the GUI.
+        while True:
+            keys = pb.getKeyboardEvents()
+            if ord('q') in keys and (keys[ord('q')] & KEY_WAS_TRIGGERED):
+                break
+            if not pb.getConnectionInfo().get('isConnected', True):
+                break
+
             now = time.time()
             dt = now - self.last_time
             if dt < self.params.dt:
@@ -227,31 +235,25 @@ class InvertedPendulumSim:
             self.last_time = now
             t_run = now - self.start_time
 
-            # Check for keyboard events: if the user presses 'q', quit the simulation.
-            keys = pb.getKeyboardEvents()
-            if ord('q') in keys and (keys[ord('q')] & KEY_WAS_TRIGGERED):
-                break
-
-            # Get cart state
+            # --- Get system states ---
+            # Cart state
             cart_pos, _ = pb.getBasePositionAndOrientation(self.cart_id)
             cart_vel, _ = pb.getBaseVelocity(self.cart_id)
             x = cart_pos[0]
             xdot = cart_vel[0]
 
-            # Get rod state
+            # Rod state
             rod_pos, rod_ori = pb.getBasePositionAndOrientation(self.rod_id)
             rod_vel, rod_ang = pb.getBaseVelocity(self.rod_id)
             eul_rod = pb.getEulerFromQuaternion(rod_ori)
             th = eul_rod[0]
             thdot = rod_ang[1]
 
-            # Sensor measurement (with noise/filtering)
+            # --- Sensor measurement and control ---
             meas = self.sensor.measure_and_filter(x, xdot, th, thdot)
-
-            # Compute control force using the LQR controller
             F_ctrl = self.controller.compute_force(meas)
 
-            # Apply disturbance at the specified time (simulate an external push)
+            # --- Apply disturbance (simulate an external push) ---
             F_extra = 0.0
             if abs(t_run - self.params.disturb_time) < 0.5 * self.params.dt:
                 F_extra += self.params.disturb_force
@@ -264,12 +266,12 @@ class InvertedPendulumSim:
             pb.applyExternalForce(self.cart_id, -1, forceObj=[F_total, 0, 0],
                                   posObj=cart_pos, flags=pb.WORLD_FRAME)
 
-            # Check for mouse events (to poke the system)
+            # --- Process mouse events (to "poke" the system) ---
             self.compute_mouse_force()
 
             pb.stepSimulation()
 
-            # Log simulation data
+            # --- Log data ---
             self.t_data.append(t_run)
             self.x_data.append(x)
             self.th_data.append(th)
@@ -300,7 +302,10 @@ class InvertedPendulumSim:
 # MAIN FUNCTION
 # =============================================================================
 def main():
+    # Fixed settings: target x_des = 0, use LQR controller.
     params = Params()
+    params.x_des = 0.0
+    params.controller_type = "LQR"
     print("Running simulation with x_des = 0 using LQR controller.")
     sim = InvertedPendulumSim(params)
     t_log, x_log, th_log, f_log = sim.run()
