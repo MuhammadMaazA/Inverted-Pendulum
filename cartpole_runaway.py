@@ -41,7 +41,7 @@ def main():
     dt = 1.0 / 240.0
     print("Open-loop cart-pole. Poke the bob or rod in the GUI to see it topple!")
     while True:
-        p.stepSimulation()
+        p.stepSimulation() 
         time.sleep(dt)
 
 if __name__ == "__main__":
