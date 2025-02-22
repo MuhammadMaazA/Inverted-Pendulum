@@ -1,5 +1,12 @@
 <?xml version="1.0" ?>
-<robot name="cart_robot">
+<robot name="cart_on_wheels">
+
+  <!-- Single link with multiple <visual> elements:
+       - The cart chassis (box).
+       - Four cylinders for wheels (purely visual).
+       Collisions: just a box for the cart body.
+  -->
+
   <link name="cart_link">
     <inertial>
       <origin xyz="0 0 0"/>
@@ -7,6 +14,18 @@
       <inertia ixx="0.002" iyy="0.002" izz="0.002" ixy="0" ixz="0" iyz="0"/>
     </inertial>
 
+    <!-- Collision shape: 
+         We'll make a box from z=0 up to z=0.1.
+         The top is z=0.1, which is the "pivot" where rod will attach.
+    -->
+    <collision>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.4 0.2 0.1"/>
+      </geometry>
+    </collision>
+
+    <!-- Visual #1: the cart body (box) -->
     <visual>
       <origin xyz="0 0 0.05" rpy="0 0 0"/>
       <geometry>
@@ -17,11 +36,50 @@
       </material>
     </visual>
 
-    <collision>
-      <origin xyz="0 0 0.05" rpy="0 0 0"/>
+    <!-- Four cylinder "wheels," purely visual -->
+    <!-- front-left wheel -->
+    <visual>
+      <origin xyz="-0.15  0.10 0.02" rpy="1.5708 0 0"/>
       <geometry>
-        <box size="0.4 0.2 0.1"/>
+        <cylinder length="0.02" radius="0.05"/>
       </geometry>
-    </collision>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+
+    <!-- front-right wheel -->
+    <visual>
+      <origin xyz="0.15 0.10 0.02" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+
+    <!-- rear-left wheel -->
+    <visual>
+      <origin xyz="-0.15 -0.10 0.02" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+
+    <!-- rear-right wheel -->
+    <visual>
+      <origin xyz="0.15 -0.10 0.02" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
   </link>
+
 </robot>
