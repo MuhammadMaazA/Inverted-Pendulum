@@ -1,0 +1,230 @@
+<?xml version="1.0" ?>
+<robot name="cart_pendulum_wheels">
+
+  <!--
+    We define multiple <link> elements, each connected by <joint> elements:
+      Link0 = chassis
+      Link1..4 = wheels
+      Link5 = rod
+      Link6 = bob
+  -->
+
+  <!-- =============== LINK 0: CHASSIS =============== -->
+  <link name="chassis_link">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="2.0"/>
+      <inertia ixx="0.01" iyy="0.01" izz="0.01" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.4 0.2 0.1"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0.3 0.8 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.4 0.2 0.1"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- =============== LINK 1: FRONT LEFT WHEEL =============== -->
+  <link name="front_left_wheel_link">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="0.2"/>
+      <inertia ixx="0.0005" iyy="0.0005" izz="0.0005" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint from chassis->front_left_wheel revolve about wheel's local X axis -->
+  <joint name="joint_fl_wheel" type="revolute">
+    <parent link="chassis_link"/>
+    <child  link="front_left_wheel_link"/>
+    <origin xyz="-0.15 0.10 0.02" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-10000" upper="10000" effort="10" velocity="100"/>
+  </joint>
+
+  <!-- =============== LINK 2: FRONT RIGHT WHEEL =============== -->
+  <link name="front_right_wheel_link">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="0.2"/>
+      <inertia ixx="0.0005" iyy="0.0005" izz="0.0005" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_fr_wheel" type="revolute">
+    <parent link="chassis_link"/>
+    <child  link="front_right_wheel_link"/>
+    <origin xyz="0.15 0.10 0.02" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-10000" upper="10000" effort="10" velocity="100"/>
+  </joint>
+
+  <!-- =============== LINK 3: REAR LEFT WHEEL =============== -->
+  <link name="rear_left_wheel_link">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="0.2"/>
+      <inertia ixx="0.0005" iyy="0.0005" izz="0.0005" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_rl_wheel" type="revolute">
+    <parent link="chassis_link"/>
+    <child  link="rear_left_wheel_link"/>
+    <origin xyz="-0.15 -0.10 0.02" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-10000" upper="10000" effort="10" velocity="100"/>
+  </joint>
+
+  <!-- =============== LINK 4: REAR RIGHT WHEEL =============== -->
+  <link name="rear_right_wheel_link">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="0.2"/>
+      <inertia ixx="0.0005" iyy="0.0005" izz="0.0005" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+      <material name="black">
+        <color rgba="0 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="joint_rr_wheel" type="revolute">
+    <parent link="chassis_link"/>
+    <child  link="rear_right_wheel_link"/>
+    <origin xyz="0.15 -0.10 0.02" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-10000" upper="10000" effort="10" velocity="100"/>
+  </joint>
+
+  <!-- =============== LINK 5: ROD =============== -->
+  <link name="rod_link">
+    <inertial>
+      <origin xyz="0 0 0.225"/>
+      <mass value="0.05"/>
+      <inertia ixx="0.0006" iyy="0.0006" izz="0.0006" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.01"/>
+      </geometry>
+      <material name="red">
+        <color rgba="0.8 0 0 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.45" radius="0.01"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Joint revolve about Y from top center of chassis (0,0,0.1) to rod bottom(0,0,-0.225) -->
+  <joint name="joint_pendulum" type="revolute">
+    <parent link="chassis_link"/>
+    <child  link="rod_link"/>
+    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.5708" upper="1.5708" effort="50" velocity="10"/>
+  </joint>
+
+  <!-- =============== LINK 6: BOB =============== -->
+  <link name="bob_link">
+    <inertial>
+      <origin xyz="0 0 0"/>
+      <mass value="0.05"/>
+      <inertia ixx="0.0001" iyy="0.0001" izz="0.0001" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.03"/>
+      </geometry>
+      <material name="yellow">
+        <color rgba="0.9 0.9 0.2 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.03"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- Fixed joint from rod top(0,0,0.225) to bob(0,0,0) -->
+  <joint name="joint_bob" type="fixed">
+    <parent link="rod_link"/>
+    <child  link="bob_link"/>
+    <origin xyz="0 0 0.225" rpy="0 0 0"/>
+    <axis xyz="0 0 0"/>
+  </joint>
+
+</robot>
