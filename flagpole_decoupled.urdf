@@ -1,149 +1,146 @@
 <?xml version="1.0" ?>
-<robot name="flagpole_decoupled">
+<robot name="inverted_pendulum">
 
   <!-- ========================
-       BASE LINK (the cart)
+       CART BASE (the cart)
   ======================== -->
-  <link name="base_link">
+  <link name="cart">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <mass value="5.0"/>
-      <inertia ixx="0.5" iyy="0.5" izz="0.5" ixy="0" ixz="0" iyz="0"/>
+      <mass value="10.0"/>
+      <inertia ixx="1.0" iyy="1.0" izz="1.0" ixy="0" ixz="0" iyz="0"/>
     </inertial>
     <visual>
-      <!-- A 0.4 x 0.2 x 0.05 box -->
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <!-- A 0.5 x 0.3 x 0.1 box -->
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
       <geometry>
-        <box size="0.4 0.2 0.05"/>
+        <box size="0.5 0.3 0.1"/>
       </geometry>
       <material name="Blue"/>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <origin xyz="0 0 0.05" rpy="0 0 0"/>
       <geometry>
-        <box size="0.4 0.2 0.05"/>
+        <box size="0.5 0.3 0.1"/>
       </geometry>
     </collision>
   </link>
 
   <!-- ========================
-       WHEELS (4, purely visual)
-       Each wheel is fixed to the base_link for simplicity
+       WHEELS (4) - fixed visuals for appearance
   ======================== -->
-  <link name="wheel_1">
+  <link name="wheel_fl">
     <visual>
-      <origin xyz="0.15 0.08 -0.03" rpy="1.5708 0 0"/>
+      <origin xyz="0.25 0.18 0" rpy="1.5708 0 0"/>
       <geometry>
-        <cylinder length="0.02" radius="0.06"/>
+        <cylinder length="0.05" radius="0.08"/>
       </geometry>
       <material name="Gray"/>
     </visual>
   </link>
-  <joint name="wheel_1_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="wheel_1"/>
+  <joint name="wheel_fl_joint" type="fixed">
+    <parent link="cart"/>
+    <child link="wheel_fl"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <link name="wheel_2">
+  <link name="wheel_fr">
     <visual>
-      <origin xyz="-0.15 0.08 -0.03" rpy="1.5708 0 0"/>
+      <origin xyz="0.25 -0.18 0" rpy="1.5708 0 0"/>
       <geometry>
-        <cylinder length="0.02" radius="0.06"/>
+        <cylinder length="0.05" radius="0.08"/>
       </geometry>
       <material name="Gray"/>
     </visual>
   </link>
-  <joint name="wheel_2_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="wheel_2"/>
+  <joint name="wheel_fr_joint" type="fixed">
+    <parent link="cart"/>
+    <child link="wheel_fr"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <link name="wheel_3">
+  <link name="wheel_rl">
     <visual>
-      <origin xyz="0.15 -0.08 -0.03" rpy="1.5708 0 0"/>
+      <origin xyz="-0.25 0.18 0" rpy="1.5708 0 0"/>
       <geometry>
-        <cylinder length="0.02" radius="0.06"/>
+        <cylinder length="0.05" radius="0.08"/>
       </geometry>
       <material name="Gray"/>
     </visual>
   </link>
-  <joint name="wheel_3_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="wheel_3"/>
+  <joint name="wheel_rl_joint" type="fixed">
+    <parent link="cart"/>
+    <child link="wheel_rl"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
-  <link name="wheel_4">
+  <link name="wheel_rr">
     <visual>
-      <origin xyz="-0.15 -0.08 -0.03" rpy="1.5708 0 0"/>
+      <origin xyz="-0.25 -0.18 0" rpy="1.5708 0 0"/>
       <geometry>
-        <cylinder length="0.02" radius="0.06"/>
+        <cylinder length="0.05" radius="0.08"/>
       </geometry>
       <material name="Gray"/>
     </visual>
   </link>
-  <joint name="wheel_4_joint" type="fixed">
-    <parent link="base_link"/>
-    <child link="wheel_4"/>
+  <joint name="wheel_rr_joint" type="fixed">
+    <parent link="cart"/>
+    <child link="wheel_rr"/>
     <origin xyz="0 0 0" rpy="0 0 0"/>
   </joint>
 
   <!-- ========================
-       ROD LINK (pole + bob)
-       Attached via frictionless revolute joint
+       POLE (the inverted pendulum)
+       (A tall cylinder plus a sphere on top)
   ======================== -->
-  <link name="rod_link">
+  <link name="pole">
     <inertial>
-      <origin xyz="0 0 0"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
       <mass value="1.0"/>
-      <inertia ixx="0.02" iyy="0.02" izz="0.02" ixy="0" ixz="0" iyz="0"/>
+      <inertia ixx="0.05" iyy="0.05" izz="0.05" ixy="0" ixz="0" iyz="0"/>
     </inertial>
-
-    <!-- Cylinder portion -->
+    <!-- Cylinder portion: length=0.6, radius=0.03, center at z=0.3 -->
     <visual>
-      <origin xyz="0 0 0.25"/>
+      <origin xyz="0 0 0.3" rpy="0 0 0"/>
       <geometry>
-        <cylinder length="0.5" radius="0.03"/>
+        <cylinder length="0.6" radius="0.03"/>
       </geometry>
       <material name="Green"/>
     </visual>
     <collision>
-      <origin xyz="0 0 0.25"/>
+      <origin xyz="0 0 0.3" rpy="0 0 0"/>
       <geometry>
-        <cylinder length="0.5" radius="0.03"/>
+        <cylinder length="0.6" radius="0.03"/>
       </geometry>
     </collision>
-
-    <!-- Sphere bob on top -->
+    <!-- Sphere bob: radius=0.06, placed with slight overlap at the top (cylinder top is at 0.6) -->
     <visual>
-      <origin xyz="0 0 0.53"/>
+      <origin xyz="0 0 0.57" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.05"/>
+        <sphere radius="0.06"/>
       </geometry>
       <material name="Silver"/>
     </visual>
     <collision>
-      <origin xyz="0 0 0.53"/>
+      <origin xyz="0 0 0.57" rpy="0 0 0"/>
       <geometry>
-        <sphere radius="0.05"/>
+        <sphere radius="0.06"/>
       </geometry>
     </collision>
   </link>
 
-  <!-- 
-       Revolute joint from base_link to rod_link
-       1) Axis is y (pole tilts about y)
-       2) friction=0, damping=0 so no torque transmits from rod to cart
-  -->
-  <joint name="rod_base_joint" type="revolute">
-    <parent link="base_link"/>
-    <child link="rod_link"/>
-    <origin xyz="0 0 0.05" rpy="0 0 0"/>
+  <!-- ========================
+       JOINT: Connect the pole to the cart
+       (A rigid connection so forces on the pole affect the cart)
+  ======================== -->
+  <joint name="pole_joint" type="revolute">
+    <parent link="cart"/>
+    <child link="pole"/>
+    <!-- Joint placed at the top center of the cart -->
+    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <!-- Rotation about the y-axis -->
     <axis xyz="0 1 0"/>
-    <limit lower="-1.57" upper="1.57" effort="0" velocity="0"/>
-    <dynamics damping="0.0" friction="0.0"/>
+    <limit lower="-0.87266" upper="0.87266" effort="50" velocity="2"/>
   </joint>
 
 </robot>
