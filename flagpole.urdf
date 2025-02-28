@@ -2,17 +2,18 @@
 <robot name="flagpole">
 
   <!-- ========================
-       BASE LINK (Cart)
+       CART BASE
+       (A rectangular box)
   ======================== -->
   <link name="base_link">
     <inertial>
-      <!-- A heavier cart for stability (mass=10) -->
+      <!-- A heavier cart for stability -->
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <mass value="10.0"/>
       <inertia ixx="1.0" iyy="1.0" izz="1.0" ixy="0" ixz="0" iyz="0"/>
     </inertial>
     <visual>
-      <!-- A 0.4 x 0.2 x 0.05 box -->
+      <!-- 0.4 x 0.2 x 0.05 box -->
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <box size="0.4 0.2 0.05"/>
@@ -29,16 +30,20 @@
 
   <!-- ========================
        POLE LINK
-       (Cylinder + Larger Sphere Overlap)
+       (A tall cylinder + sphere "bob" on top,
+        with slight overlap so no gap is visible)
   ======================== -->
   <link name="pole_1">
     <inertial>
+      <!-- Lighter pole for easier balancing -->
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <mass value="1.0"/>
       <inertia ixx="0.05" iyy="0.05" izz="0.05" ixy="0" ixz="0" iyz="0"/>
     </inertial>
 
-    <!-- Main cylinder: length=0.5, radius=0.03, centered at z=0.25 -->
+    <!-- The main cylinder (length=0.5, radius=0.03).
+         Center it at z=0.25 so it spans z=0..0.5 in the pole's local frame.
+    -->
     <visual>
       <origin xyz="0 0 0.25" rpy="0 0 0"/>
       <geometry>
@@ -53,7 +58,11 @@
       </geometry>
     </collision>
 
-    <!-- Sphere (bob): radius=0.06, center at z=0.505 to overlap slightly -->
+    <!-- A larger sphere (radius=0.06) placed slightly "down" into the cylinder top
+         so there's a small overlap (no visible gap).
+         The cylinder top is at z=0.5, so let's place the sphere center at z=0.505
+         to overlap by ~0.055. 
+    -->
     <visual>
       <origin xyz="0 0 0.505" rpy="0 0 0"/>
       <geometry>
@@ -71,7 +80,8 @@
 
   <!-- ========================
        WHEELS (4)
-       (Short cylinders, oriented vertically)
+       Clearly cylindrical (short, wide),
+       oriented so they spin around the y-axis.
   ======================== -->
   <link name="tl_wheel_1">
     <inertial>
@@ -80,7 +90,11 @@
       <inertia ixx="0.01" iyy="0.01" izz="0.01" ixy="0" ixz="0" iyz="0"/>
     </inertial>
     <visual>
-      <!-- Cylinder axis rotated 90° so it spins about y -->
+      <!-- A short cylinder (length=0.02, radius=0.07)
+           By default, a cylinder’s axis is along Z,
+           but our wheel joint rotates around Y,
+           so rotate geometry by +90° around X to align Z->Y.
+      -->
       <origin xyz="0 0 0" rpy="1.5708 0 0"/>
       <geometry>
         <cylinder length="0.02" radius="0.07"/>
@@ -95,13 +109,78 @@
     </collision>
   </link>
 
-  <link name="bl_wheel_1"> ... same cylinder geometry ... </link>
-  <link name="tr_wheel_1"> ... same cylinder geometry ... </link>
-  <link name="br_wheel_1"> ... same cylinder geometry ... </link>
+  <link name="bl_wheel_1">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.01" iyy="0.01" izz="0.01" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.07"/>
+      </geometry>
+      <material name="Gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.07"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="tr_wheel_1">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.01" iyy="0.01" izz="0.01" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.07"/>
+      </geometry>
+      <material name="Gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.07"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <link name="br_wheel_1">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="1.0"/>
+      <inertia ixx="0.01" iyy="0.01" izz="0.01" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.07"/>
+      </geometry>
+      <material name="Gray"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+      <geometry>
+        <cylinder length="0.02" radius="0.07"/>
+      </geometry>
+    </collision>
+  </link>
 
   <!-- ========================
        JOINTS
+       Pole rotates about y-axis ±50°,
+       Wheels rotate continuously about y-axis.
   ======================== -->
+
+  <!-- The pole is attached at z=0.05 above the cart,
+       so the cylinder extends from z=0.05..0.55, with the sphere up to ~0.565
+  -->
   <joint name="pole_base_joint" type="revolute">
     <origin xyz="0 0 0.05" rpy="0 0 0"/>
     <parent link="base_link"/>
@@ -110,8 +189,9 @@
     <limit lower="-0.87266" upper="0.87266" effort="30.0" velocity="2.0"/>
   </joint>
 
-  <!-- 4 wheels, continuous about y-axis -->
+  <!-- 4 Wheel Joints: continuous about y-axis -->
   <joint name="tl_base_joint" type="continuous">
+    <!-- top-left wheel -->
     <origin xyz="0.18 0.10 0" rpy="0 0 0"/>
     <parent link="base_link"/>
     <child link="tl_wheel_1"/>
@@ -119,6 +199,7 @@
   </joint>
 
   <joint name="bl_base_joint" type="continuous">
+    <!-- bottom-left wheel -->
     <origin xyz="-0.18 0.10 0" rpy="0 0 0"/>
     <parent link="base_link"/>
     <child link="bl_wheel_1"/>
@@ -126,6 +207,7 @@
   </joint>
 
   <joint name="tr_base_joint" type="continuous">
+    <!-- top-right wheel -->
     <origin xyz="0.18 -0.10 0" rpy="0 0 0"/>
     <parent link="base_link"/>
     <child link="tr_wheel_1"/>
@@ -133,6 +215,7 @@
   </joint>
 
   <joint name="br_base_joint" type="continuous">
+    <!-- bottom-right wheel -->
     <origin xyz="-0.18 -0.10 0" rpy="0 0 0"/>
     <parent link="base_link"/>
     <child link="br_wheel_1"/>
