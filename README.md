@@ -3,7 +3,7 @@
 This project contains a Python simulation of an inverted pendulum on a cart, 
 fulfilling typical MBSE milestone requirements:
 
-1. **Nonlinear Modeling** (ODE-based or PyBullet-based).
+1. **Nonlinear Modeling** (PyBullet-based).
 2. **Sensor Noise & Filtering** (Gaussian noise, simple low-pass).
 3. **Controllers**: PID, Pole-Placement, Nonlinear (Energy Shaping).
 4. **Visualization**: Real-time Matplotlib animation with disturbances.
