@@ -7,13 +7,11 @@
   ======================== -->
   <link name="base_link">
     <inertial>
-      <!-- A heavier cart for stability -->
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <mass value="10.0"/>
       <inertia ixx="1.0" iyy="1.0" izz="1.0" ixy="0" ixz="0" iyz="0"/>
     </inertial>
     <visual>
-      <!-- 0.4 x 0.2 x 0.05 box -->
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <geometry>
         <box size="0.4 0.2 0.05"/>
@@ -35,15 +33,10 @@
   ======================== -->
   <link name="pole_1">
     <inertial>
-      <!-- Lighter pole for easier balancing -->
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <mass value="1.0"/>
       <inertia ixx="0.05" iyy="0.05" izz="0.05" ixy="0" ixz="0" iyz="0"/>
     </inertial>
-
-    <!-- The main cylinder (length=0.5, radius=0.03).
-         Center it at z=0.25 so it spans z=0..0.5 in the pole's local frame.
-    -->
     <visual>
       <origin xyz="0 0 0.25" rpy="0 0 0"/>
       <geometry>
@@ -57,11 +50,6 @@
         <cylinder length="0.5" radius="0.03"/>
       </geometry>
     </collision>
-
-    <!-- A larger sphere (radius=0.06) placed slightly "down" into the cylinder top
-         so there's a small overlap (no visible gap).
-         The cylinder top is at z=0.5, so we place the sphere center at z=0.505.
-    -->
     <visual>
       <origin xyz="0 0 0.505" rpy="0 0 0"/>
       <geometry>
@@ -79,8 +67,7 @@
 
   <!-- ========================
        WHEELS (4)
-       Clearly cylindrical (short, wide),
-       oriented so they spin around the y-axis.
+       Oriented so they spin around y-axis.
   ======================== -->
   <link name="tl_wheel_1">
     <inertial>
@@ -89,7 +76,6 @@
       <inertia ixx="0.01" iyy="0.01" izz="0.01" ixy="0" ixz="0" iyz="0"/>
     </inertial>
     <visual>
-      <!-- A short cylinder (length=0.02, radius=0.07) rotated by +90° around X -->
       <origin xyz="0 0 0" rpy="1.5708 0 0"/>
       <geometry>
         <cylinder length="0.02" radius="0.07"/>
@@ -168,8 +154,6 @@
        JOINTS
        (Pole rotates about y-axis ±50°, wheels rotate continuously about y-axis)
   ======================== -->
-
-  <!-- Pole joint with added damping to reduce excessive response -->
   <joint name="pole_base_joint" type="revolute">
     <origin xyz="0 0 0.05" rpy="0 0 0"/>
     <parent link="base_link"/>
@@ -178,8 +162,6 @@
     <limit lower="-0.87266" upper="0.87266" effort="30.0" velocity="2.0"/>
     <dynamics damping="5.0" friction="5.0"/>
   </joint>
-
-  <!-- 4 Wheel Joints (continuous about y-axis) -->
   <joint name="tl_base_joint" type="continuous">
     <origin xyz="0.18 0.10 0" rpy="0 0 0"/>
     <parent link="base_link"/>
