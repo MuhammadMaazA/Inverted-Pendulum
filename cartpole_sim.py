@@ -3,8 +3,11 @@ import pybullet_data
 import time
 import os
 import math
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from scipy.integrate import solve_ivp
+
 
 class PIDController:
     def __init__(self, Kp, Ki, Kd, setpoint=0.0, output_limits=(-10.0, 10.0), dead_zone=1e-4):
@@ -48,20 +51,223 @@ class PIDController:
         self.integral = 0.0
         self.previous_error = 0.0
 
-def main():
-    # Controller parameters - reduced gains to allow more natural motion
-    # For the pole angle (more gentle control):
-    pole_pid = PIDController(Kp=5.0, Ki=0.1, Kd=1.0, setpoint=0.0, 
-                            output_limits=(-8.0, 8.0), dead_zone=0.01)
-    
-    # For cart position - REMOVED to allow manual positioning
-    # Instead, we'll use damping to prevent excessive motion
-    cart_damping = 1.5  # Damping coefficient for cart motion
-    
-    # Simulation parameters
-    dt = 1.0 / 240.0
-    max_sim_time = 100.0
 
+class LQRController:
+    def __init__(self, A, B, Q, R, output_limits=(-10.0, 10.0)):
+        """
+        Linear Quadratic Regulator controller.
+        
+        Args:
+            A: System matrix
+            B: Input matrix
+            Q: State cost matrix
+            R: Control cost matrix
+            output_limits: Control output limits
+        """
+        self.A = A
+        self.B = B
+        self.Q = Q
+        self.R = R
+        self.K = self._compute_gain()
+        self.output_limits = output_limits
+        
+    def _compute_gain(self):
+        """Compute the LQR gain matrix K."""
+        # Solve the Discrete Algebraic Riccati Equation (DARE)
+        # This is a simplified implementation - in practice, use scipy.linalg.solve_discrete_are
+        P = np.matrix(self.Q)
+        for _ in range(100):  # Iterate to convergence
+            P_next = self.A.T @ P @ self.A - \
+                    (self.A.T @ P @ self.B) @ np.linalg.inv(self.R + self.B.T @ P @ self.B) @ (self.B.T @ P @ self.A) + \
+                    self.Q
+            if np.allclose(P, P_next):
+                break
+            P = P_next
+        
+        # Compute the optimal gain K
+        K = np.linalg.inv(self.R + self.B.T @ P @ self.B) @ (self.B.T @ P @ self.A)
+        return K
+    
+    def compute(self, state_vector):
+        """
+        Compute control output based on current state.
+        
+        Args:
+            state_vector: Current state [position, velocity, angle, angular_velocity]
+        
+        Returns:
+            control: Control output
+        """
+        state = np.matrix(state_vector).T
+        control = -float(self.K @ state)
+        control = max(self.output_limits[0], min(control, self.output_limits[1]))
+        return control
+
+
+class MPC_SimplifiedController:
+    """A simplified Model Predictive Control implementation."""
+    
+    def __init__(self, A, B, Q, R, N=10, output_limits=(-10.0, 10.0)):
+        """
+        Args:
+            A: System matrix
+            B: Input matrix
+            Q: State cost matrix
+            R: Control cost matrix
+            N: Prediction horizon
+            output_limits: Control output limits
+        """
+        self.A = A
+        self.B = B
+        self.Q = Q
+        self.R = R
+        self.N = N
+        self.output_limits = output_limits
+        
+    def compute(self, state_vector):
+        """
+        Compute control output based on current state using simplified MPC.
+        
+        In a real MPC implementation, we would solve a constrained optimization problem
+        here to find the optimal control sequence over the horizon. For simplicity,
+        we'll use a LQR-like approach as an approximation.
+        """
+        state = np.matrix(state_vector).T
+        
+        # Simple approach: use LQR gain for first step
+        P = self.Q
+        for _ in range(self.N-1, -1, -1):
+            K = np.linalg.inv(self.R + self.B.T @ P @ self.B) @ (self.B.T @ P @ self.A)
+            P = self.A.T @ P @ self.A - (self.A.T @ P @ self.B) @ K + self.Q
+            
+        control = -float(K @ state)
+        control = max(self.output_limits[0], min(control, self.output_limits[1]))
+        return control
+
+
+class InvertedPendulumModel:
+    """Mathematical model of the inverted pendulum system."""
+    
+    def __init__(self, M=1.0, m=0.1, L=0.5, g=9.81, b=0.1, I=0.05, air_drag=0.01):
+        """
+        Args:
+            M: Mass of the cart (kg)
+            m: Mass of the pendulum (kg)
+            L: Length of the pendulum (m)
+            g: Gravity acceleration (m/s^2)
+            b: Friction coefficient of the cart
+            I: Moment of inertia of the pendulum
+            air_drag: Air drag coefficient
+        """
+        self.M = M
+        self.m = m
+        self.L = L
+        self.g = g
+        self.b = b
+        self.I = I
+        self.air_drag = air_drag
+        
+    def dynamics(self, t, state, u=0.0, noise=None):
+        """
+        Nonlinear dynamics of the inverted pendulum.
+        
+        Args:
+            t: Time
+            state: [x, x_dot, theta, theta_dot]
+            u: Control input (force applied to cart)
+            noise: Optional noise parameters
+            
+        Returns:
+            derivatives: [x_dot, x_ddot, theta_dot, theta_ddot]
+        """
+        x, x_dot, theta, theta_dot = state
+        
+        # Add sensor noise if provided
+        if noise is not None:
+            theta += np.random.normal(0, noise.get('angle', 0))
+            x += np.random.normal(0, noise.get('position', 0))
+        
+        # Compute nonlinear dynamics
+        sin_theta = math.sin(theta)
+        cos_theta = math.cos(theta)
+        
+        # Include air drag on pendulum
+        air_resistance = self.air_drag * theta_dot**2 * np.sign(-theta_dot)
+        
+        # Compute the denominator term
+        d = self.I * (self.M + self.m) + self.M * self.m * self.L**2 * sin_theta**2
+        
+        # Compute the accelerations
+        x_ddot = (u - self.b * x_dot - self.m * self.L * theta_dot**2 * sin_theta - 
+                  self.m * self.L * cos_theta * (self.m * self.g * self.L * sin_theta - air_resistance) / d) / \
+                 (self.M + self.m - self.m * self.L * cos_theta**2 * self.m / d)
+        
+        theta_ddot = (self.m * self.g * self.L * sin_theta - air_resistance - 
+                      self.m * self.L * cos_theta * x_ddot) / d
+        
+        return [x_dot, x_ddot, theta_dot, theta_ddot]
+    
+    def linearize(self):
+        """
+        Linearize the system around the equilibrium point (upright position).
+        
+        Returns:
+            A: System matrix
+            B: Input matrix
+        """
+        # For small angles: sin(θ) ≈ θ, cos(θ) ≈ 1
+        # The linearized system matrices
+        A = np.array([
+            [0, 1, 0, 0],
+            [0, -self.b/(self.M+self.m), self.m*self.g*self.L/(self.M+self.m), 0],
+            [0, 0, 0, 1],
+            [0, -self.b*self.L/((self.M+self.m)*self.L**2 + self.I), 
+             self.g*(self.M+self.m)*self.L/((self.M+self.m)*self.L**2 + self.I), 0]
+        ])
+        
+        B = np.array([
+            [0],
+            [1/(self.M+self.m)],
+            [0],
+            [self.L/((self.M+self.m)*self.L**2 + self.I)]
+        ])
+        
+        return A, B
+
+
+def kalman_filter(z, x_prev, P_prev, F, H, Q, R):
+    """
+    Kalman filter implementation for state estimation with noisy measurements.
+    
+    Args:
+        z: Measurement vector
+        x_prev: Previous state estimate
+        P_prev: Previous error covariance
+        F: State transition matrix
+        H: Measurement matrix
+        Q: Process noise covariance
+        R: Measurement noise covariance
+        
+    Returns:
+        x: Updated state estimate
+        P: Updated error covariance
+    """
+    # Predict
+    x_pred = F @ x_prev
+    P_pred = F @ P_prev @ F.T + Q
+    
+    # Update
+    y = z - H @ x_pred  # Measurement residual
+    S = H @ P_pred @ H.T + R  # Residual covariance
+    K = P_pred @ H.T @ np.linalg.inv(S)  # Kalman gain
+    
+    x = x_pred + K @ y  # Updated state estimate
+    P = (np.eye(len(x_pred)) - K @ H) @ P_pred  # Updated error covariance
+    
+    return x, P
+
+
+def main():
     # Connect to PyBullet and set up environment
     p.connect(p.GUI)
     p.configureDebugVisualizer(p.COV_ENABLE_GUI, 1)
@@ -73,22 +279,18 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     p.setAdditionalSearchPath(current_dir)
     cart_id = p.loadURDF("flagpole.urdf", [0, 0, 0.1],
-                       p.getQuaternionFromEuler([0, 0, 0]),
-                       useFixedBase=False)
+                         p.getQuaternionFromEuler([0, 0, 0]),
+                         useFixedBase=False)
 
     # Set up PyBullet parameters for better interaction
     p.setPhysicsEngineParameter(enableFileCaching=0,
-                              numSolverIterations=50,
-                              numSubSteps=4)
+                                numSolverIterations=50,
+                                numSubSteps=4)
     
-    # Add debug parameters for real-time tuning
-    param_ids = []
-    pole_kp_id = p.addUserDebugParameter("Pole Kp", 0, 20, 5.0)
-    pole_ki_id = p.addUserDebugParameter("Pole Ki", 0, 1, 0.1)
-    pole_kd_id = p.addUserDebugParameter("Pole Kd", 0, 5, 1.0)
-    damping_id = p.addUserDebugParameter("Cart Damping", 0, 5, 1.5)
-    param_ids.extend([pole_kp_id, pole_ki_id, pole_kd_id, damping_id])
-
+    # Simulation parameters
+    dt = 1.0 / 240.0
+    max_sim_time = 120.0  # Extended simulation time
+    
     # Disable default motor control and get joint information
     num_joints = p.getNumJoints(cart_id)
     for j in range(num_joints):
@@ -119,176 +321,41 @@ def main():
     print("Wheel joints:", wheel_indices)
     print("Pole joint index:", pole_joint_index)
 
-    # Initialize the pole with a slight offset to make it unstable
-    p.resetJointState(cart_id, pole_joint_index, 0.1)  # Slight initial angle
+    # Initialize the pendulum model
+    pendulum_model = InvertedPendulumModel(M=10.0, m=1.0, L=0.5, b=0.5)
+    A, B = pendulum_model.linearize()
+    
+    # Controller setup
+    # PID controller with moderate gains
+    pid_controller = PIDController(Kp=15.0, Ki=0.5, Kd=5.0, setpoint=0.0, 
+                                   output_limits=(-20.0, 20.0), dead_zone=0.01)
+    
+    # LQR controller setup
+    Q = np.diag([1.0, 0.1, 10.0, 1.0])  # State cost: prioritize angle stabilization
+    R = np.array([[0.1]])  # Control cost
+    lqr_controller = LQRController(A, B, Q, R, output_limits=(-20.0, 20.0))
+    
+    # MPC controller setup
+    mpc_controller = MPC_SimplifiedController(A, B, Q, R, N=15, output_limits=(-20.0, 20.0))
+    
+    # Initialize with a slight angle for instability
+    initial_angle = 0.1  # radians
+    p.resetJointState(cart_id, pole_joint_index, initial_angle)
 
     # Adjust dynamics for more realistic behavior
     for i in range(-1, num_joints):
         p.changeDynamics(cart_id, i, 
-                       lateralFriction=1.0,       # Reduced to allow more natural slide
-                       rollingFriction=0.01,      # Reduced for smoother movement
-                       spinningFriction=0.01,     # Reduced for smoother movement
-                       restitution=0.1)           # Some bounce on collision
+                         lateralFriction=1.0,
+                         rollingFriction=0.01,
+                         spinningFriction=0.01,
+                         restitution=0.1)
 
-    # Data logging
-    time_data = []
-    pole_angle_data = []
-    cart_position_data = []
-    control_force_data = []
-    sim_time = 0.0
+    # Setup debug parameters
+    # Note: PyBullet doesn't have removeUserDebugParameter, 
+    # so we'll track which items to ignore during cleanup
+    control_type_id = p.addUserDebugParameter("Controller (0:Off, 1:PID, 2:LQR, 3:MPC)", 0, 3, 1)
+    noise_amplitude_id = p.addUserDebugParameter("Sensor Noise (0-1)", 0, 1, 0)
+    filter_strength_id = p.addUserDebugParameter("Filter Strength (0-1)", 0, 1, 0.5)
     
-    # Variables for user interaction
-    force_scaling = 5.0     # Scale applied mouse drag forces
-    last_draginfo = None
-    
-    # Control mode state - start with control enabled, can be toggled
-    control_enabled = True
-    control_text_id = p.addUserDebugText("Control: ENABLED", [0, 0, 0.5], [0, 1, 0])
-    
-    # Add toggle button for control
-    toggle_button = p.addUserDebugParameter("Toggle Control", 1, 0, 1)
-    last_toggle_state = p.readUserDebugParameter(toggle_button)
-    
-    print("\nInverted Pendulum Simulation")
-    print("----------------------------")
-    print("- Click and drag the cart to move it manually")
-    print("- The controller will try to keep the pole upright")
-    print("- Toggle the control system on/off with the control button")
-    print("- Adjust PID parameters in real-time with the sliders")
-    print("- Press Ctrl+C to exit\n")
-
-    try:
-        while sim_time < max_sim_time:
-            start_time = time.time()
-            
-            # Check if control toggle button was pressed
-            current_toggle = p.readUserDebugParameter(toggle_button)
-            if abs(current_toggle - last_toggle_state) > 0.5:
-                control_enabled = not control_enabled
-                last_toggle_state = current_toggle
-                
-                # Update display text
-                p.removeUserDebugItem(control_text_id)
-                if control_enabled:
-                    control_text_id = p.addUserDebugText("Control: ENABLED", [0, 0, 0.5], [0, 1, 0])
-                    pole_pid.reset()  # Reset controller state when re-enabling
-                else:
-                    control_text_id = p.addUserDebugText("Control: DISABLED", [0, 0, 0.5], [1, 0, 0])
-            
-            # Update PID parameters from sliders
-            pole_pid.Kp = p.readUserDebugParameter(pole_kp_id)
-            pole_pid.Ki = p.readUserDebugParameter(pole_ki_id)
-            pole_pid.Kd = p.readUserDebugParameter(pole_kd_id)
-            cart_damping = p.readUserDebugParameter(damping_id)
-            
-            # Handle mouse interaction for dragging the cart
-            mouse_events = p.getMouseEvents()
-            for e in mouse_events:
-                if e[0] == 2:  # Mouse move with button down
-                    if e[3] == 0 and e[4] == cart_id:  # Left button & hit our cart
-                        rayFrom, rayTo, rayInfo = p.getDebugVisualizerCamera()[10:13]
-                        camPos = np.array(rayFrom)
-                        rayFwd = np.array(rayTo) - np.array(rayFrom)
-                        rayLen = np.linalg.norm(rayFwd)
-                        rayNorm = rayFwd / rayLen
-                        
-                        # Get hit position
-                        hitPos = camPos + rayNorm * rayInfo[3]
-                        # Apply force in the direction of movement
-                        if last_draginfo is not None:
-                            drag_direction = np.array(hitPos) - np.array(last_draginfo)
-                            # Only apply force in x direction (2D constraint)
-                            if abs(drag_direction[0]) > 0.001:  # Small threshold to avoid noise
-                                p.applyExternalForce(cart_id, -1, 
-                                                   [drag_direction[0] * force_scaling, 0, 0], 
-                                                   hitPos, p.WORLD_FRAME)
-                        last_draginfo = hitPos
-                elif e[0] == 5:  # Button up
-                    last_draginfo = None
-            
-            # Read current pole angle and cart position
-            pole_angle = p.getJointState(cart_id, pole_joint_index)[0]
-            cart_pos, cart_orient = p.getBasePositionAndOrientation(cart_id)
-            cart_vel, ang_vel = p.getBaseVelocity(cart_id)
-            
-            # Calculate control action
-            total_control = 0
-            if control_enabled:
-                # Compute PID for pole angle
-                pole_torque, pole_error = pole_pid.compute(pole_angle, dt)
-                
-                # Apply damping to cart motion (instead of position control)
-                # This allows manual positioning while preventing excessive movement
-                damping_force = -cart_damping * cart_vel[0]
-                
-                # Combine control efforts
-                total_control = pole_torque + damping_force
-                total_control = max(-8.0, min(total_control, 8.0))  # Limit control force
-            
-            # Apply the computed force to wheel joints for controlled movement
-            for wj in wheel_indices:
-                p.setJointMotorControl2(cart_id, wj, p.TORQUE_CONTROL, force=total_control)
-            
-            # Log data
-            time_data.append(sim_time)
-            pole_angle_data.append(pole_angle)
-            cart_position_data.append(cart_pos[0])
-            control_force_data.append(total_control)
-            
-            # Print status at reduced frequency
-            if int(sim_time * 10) % 5 == 0:
-                mode = "ENABLED" if control_enabled else "DISABLED"
-                print(f"Time: {sim_time:.1f}s | Control: {mode} | "
-                      f"Pole: {pole_angle:.3f} rad | Cart: {cart_pos[0]:.3f} m | "
-                      f"Force: {total_control:.2f}")
-            
-            # Advance simulation
-            p.stepSimulation()
-            sim_time += dt
-            
-            # Maintain real-time factor
-            elapsed = time.time() - start_time
-            if dt - elapsed > 0:
-                time.sleep(dt - elapsed)
-                
-    except KeyboardInterrupt:
-        print("\nSimulation interrupted by user.")
-    finally:
-        # Clean up debug items
-        for id in param_ids:
-            p.removeUserDebugParameter(id)
-        p.removeUserDebugItem(control_text_id)
-        p.removeUserDebugParameter(toggle_button)
-        
-        # Plot results if we have enough data
-        if len(time_data) > 10:
-            plt.figure(figsize=(12, 9))
-            
-            plt.subplot(3, 1, 1)
-            plt.plot(time_data, pole_angle_data, 'r-', label="Pole Angle (rad)")
-            plt.ylabel("Angle (rad)")
-            plt.legend()
-            plt.grid(True)
-            
-            plt.subplot(3, 1, 2)
-            plt.plot(time_data, cart_position_data, 'b-', label="Cart Position (m)")
-            plt.ylabel("Position (m)")
-            plt.legend()
-            plt.grid(True)
-            
-            plt.subplot(3, 1, 3)
-            plt.plot(time_data, control_force_data, 'g-', label="Control Force (N)")
-            plt.xlabel("Time (s)")
-            plt.ylabel("Force (N)")
-            plt.legend()
-            plt.grid(True)
-            
-            plt.suptitle("Inverted Pendulum Simulation Results")
-            plt.tight_layout()
-            plt.show()
-        
-        p.disconnect()
-        print("Simulation ended.")
-
-if __name__ == "__main__":
-    main()
+    # Add controller tuning parameters
+    pi
